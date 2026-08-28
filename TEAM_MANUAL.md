@@ -53,6 +53,22 @@ The following are intentionally not implemented:
 
 ## 3. Quick start
 
+### Important: every teammate must start two applications
+
+This repository contains two separate local development processes:
+
+1. The FastAPI backend on port `8000`
+2. The React frontend on port `5173`
+
+Starting only the frontend will display:
+
+```text
+Intelligence service unavailable
+Failed to fetch. Start the FastAPI backend on port 8000, then retry.
+```
+
+This is expected when the browser cannot reach the backend. Every teammate must keep both terminal processes running while using the website locally.
+
 Open two PowerShell terminals in the repository root.
 
 ### Backend terminal
@@ -81,6 +97,25 @@ npm.cmd run dev
 Open `http://localhost:5173` in a browser.
 
 `npm.cmd` is recommended on Windows because PowerShell execution policy may block `npm.ps1`.
+
+### Confirm both services are working
+
+Before investigating another problem, open these URLs:
+
+- `http://localhost:8000/health` must return a JSON response containing `"status": "healthy"`.
+- `http://localhost:5173` must display the investigation dashboard.
+
+If `/health` does not open, the backend is not running correctly. Read the error shown in the backend terminal.
+
+### One-command Docker alternative
+
+If Docker Desktop is installed, both services can be started together from the repository root:
+
+```powershell
+docker compose up --build
+```
+
+Docker still runs two services internally, but the teammate only needs one command. The frontend is available at `http://localhost:5173` and the backend at `http://localhost:8000`.
 
 ## 4. Repository map
 
@@ -536,13 +571,36 @@ npm.cmd run dev
 
 ### Frontend says the intelligence service is unavailable
 
-Confirm the backend is running at `http://localhost:8000`. Test:
+This normally means the frontend is running but the backend is stopped or unreachable. Start it in a separate terminal:
+
+```powershell
+cd backend
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --reload --port 8000
+```
+
+Keep that terminal open. Confirm the backend is running at `http://localhost:8000` by testing:
 
 ```powershell
 Invoke-RestMethod http://localhost:8000/health
 ```
 
-Also confirm `VITE_API_BASE_URL` points to `http://localhost:8000/api/v1`.
+If the health check succeeds but the frontend still fails, create or check `frontend/.env`:
+
+```env
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+```
+
+Restart `npm.cmd run dev` after changing an environment file.
+
+Also check the frontend terminal. If Vite selected port `5174` because `5173` was occupied, either free port `5173` or start the backend with the matching CORS origin:
+
+```powershell
+$env:FRONTEND_URL="http://localhost:5174"
+python -m uvicorn app.main:app --reload --port 8000
+```
+
+Then open `http://localhost:5174`.
 
 ### Browser shows a CORS error
 
